@@ -1,0 +1,8 @@
+# Dependancies
+node_modules/
+
+# Environment
+.env
+
+# pem key files
+*.pem
