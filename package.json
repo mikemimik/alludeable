@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "probot run",
+    "simulate": "probot simulate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,6 +17,8 @@
   },
   "dependencies": {
     "lodash": "^4.17.10",
-    "probot": "^7.0.1"
+    "probot": "^7.0.1",
+    "request": "^2.87.0",
+    "request-promise": "^4.2.2"
   }
 }
