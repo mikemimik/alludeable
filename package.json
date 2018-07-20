@@ -6,6 +6,8 @@
   "scripts": {
     "start": "probot run",
     "simulate": "probot simulate",
+    "simulate:fail:test": "probot simulate status tests/fixtures/status-failure-test.fixture.json ./index.js",
+    "simulate:pass": "probot simulate status tests/fixtures/status-success.fixture.json ./index.js",
     "test": "jest"
   },
   "keywords": [],
