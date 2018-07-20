@@ -7,7 +7,6 @@ const EVENT_SLUG = 'status';
 
 module.exports = (app) => {
   app.on(EVENT_SLUG, async (context) => {
-    // NOTE(mperrotte): execute the state flow for this status event
     const { payload, log: logger } = context;
     const {
       state,
@@ -18,6 +17,7 @@ module.exports = (app) => {
       },
     } = payload;
 
+    // INFO(mperrotte): execute the state flow for this status event
     switch (state) {
       case 'pending':
       case 'error': {
@@ -25,13 +25,22 @@ module.exports = (app) => {
       }
       case 'failure':
       case 'success': {
+
+        // INFO(mperrotte): determine if this context is involed in a PR
         const isInvolved = await involvement(context);
 
         if (isInvolved) {
-          // INFO(mperrotte): this commitSha is part of a PR, process it
+          // INFO(mperrotte): the commit in this context is part of a PR, process it
+          // INFO(mperrotte): fetch the logs for this commit from the provider
           const log = await fetchLog(context);
+
+          // INFO(mperrotte): parce out the section of log we care about
           const logSection = logParcer(log);
+
+          // INFO(mperrotte): create a message to post as the comment on the PR
           const message = composeMessage(commit, logSection, logUrl, commitUrl);
+
+          // INFO(mperrotte): create or update a comment on the PR
           upsertComment(context, message);
         }
       }
@@ -83,14 +92,21 @@ async function fetchLog(context) {
   const { target_url: targetUrl } = payload;
   const buildParser = /\d+/;
 
+  // INFO(mperrotte): parse the build ID out of the target url
+  // NOTE(mperrotte): `.match` returns an array, first element we want
   const [buildId] = targetUrl.match(buildParser);
   logger.debug('buildId:', buildId);
 
+  // INFO(mperrotte): get jobs for this build ID
   const jobIds = await travisApi.getJobs(buildId);
   if (jobIds.length === 1) {
+
+    // INFO(mperrotte): found 1 job, all this are well, continue
     const rawLog = await travisApi.getLog(jobIds.pop());
     return rawLog;
   } else {
+
+    // INFO(mperrotte): we found 0 or > 1 jobs, bail; gracefully
     // TODO(mperrotte): handle multiple job ids
     // TODO(mperrotte): filter for failing job
     return '';
@@ -117,11 +133,9 @@ function composeMessage(commit, message, logUrl, commitUrl) {
  * @param {string} message The message to post as the comment on the PR
  */
 async function upsertComment(context, message) {
-  const { payload, github } = context;
-  // INFO(mperrotte): fetch the Pr's
-  const pullrequests = await fetchPrs(context);
-  const pullrequest = pullrequests.pop();
+  const { payload, github, log: logger } = context;
   const {
+    sha: commit,
     repository: {
       name: repoName,
       owner: {
@@ -129,12 +143,27 @@ async function upsertComment(context, message) {
       },
     },
   } = payload;
+
+  // INFO(mperrotte): fetch open PR's
+  const pullrequests = await fetchPrs(context);
+
+  // INFO(mperrotte): filter the PR's for the one this commit is part of
+  const pullrequest = pullrequests.filter((pr) => pr.head.sha === commit).pop();
   const commentFetchParams = {
     owner: repoOwner,
     repo: repoName,
     number: pullrequest.number,
   };
+
+  // INFO(mperrotte): fetch all comments for this PR
+  /**
+   * NOTE(mperrotte):
+   * We're using the `issues` endpoint to get the comments as the `pullRequests`
+   * endpoint does not return the comments for some reason.
+   */
   const { data: comments } = await github.issues.getComments(commentFetchParams);
+
+  // INFO(mperrotte): filter all the comments for the one this bot posted
   const appComments = comments.filter((comment) => {
     const {
       user: {
@@ -147,20 +176,27 @@ async function upsertComment(context, message) {
     }
     return false;
   });
+
   if (appComments.length === 1) {
-    // INFO(mperrotte): the bot has commented already, update existing comment
+    // INFO(mperrotte): found a comment from this bot, continue
     const comment = appComments.pop();
+
+    // INFO(mperrotte): the bot has commented already, update existing comment
     const updateCommentParams = {
       owner: repoOwner,
       repo: repoName,
       comment_id: comment.id,
       body: message,
     };
-    const updateComment = await github.issues.editComment(updateCommentParams);
+    const { data: updateComment } = await github.issues.editComment(updateCommentParams);
+    logger.debug('updated.comment:', updateComment);
   } else if (appComments.legnth > 1) {
+
+    // INFO(mperrotte): found more than one comment from the bot? uh oh, we should bail
     // NOTE(mperrotte): somehow the bot commented twice on this PR (error)
     // TODO(mperrotte): make this edge case impossible
   } else {
+
     // INFO(mperrotte): the bot hasn't commented yet, create a new comment
     const createCommentParams = {
       owner: repoOwner,
@@ -168,9 +204,7 @@ async function upsertComment(context, message) {
       number: pullrequest.number,
       body: message,
     };
-    const createComment = await github.issues.createComment(createCommentParams);
-    console.log(createComment); // TESTING
+    const { data: createComment } = await github.issues.createComment(createCommentParams);
+    logger.debug('created.comment:', createComment);
   }
-  // TODO(mperrotte): figure out what an updated comment looks like
-
 }
