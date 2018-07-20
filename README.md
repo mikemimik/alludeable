@@ -21,14 +21,5 @@ It is necessary to have a continuous integration tool setup for the repository t
 - Was unable to figure out how to get an auth token from the `context.github` client. I'm not sure if I'm missing settings or documentation on method calls, or a paradigm on how to get a token from the user when they first authenticate the Github App with their account / repositories. I was going to use this token with v2 of the TravisCI API in order to retrive build logs in order to parse them
 > Solution was me realising that the `target_url` that is returned in the status event doesn't need authentication to view. Furthermore there is a _raw_ version of the logs at `https://api.travis-ci.org/v2/job/{job_id}/log.txt`. This will be how I consume the build job logs.
 
-
-## INFO
-
-permalink structure for embedded snippets
-- url: https://github.com
-- user: /mikemimik
-- repo: /flutter-calendar
-- slug: /blob
-- commit-sha???: /0ecbcba269346e40462a46870db1c401ae7629c7
-- directory_structure: /lib/controllers.dart
-- lines: #L2-L5
+- `github.pullRequests.getComments` function on the client object did not get the comments for the PR.
+> Solution was using the `github.issues.getComments` endpoint instead.
