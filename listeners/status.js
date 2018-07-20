@@ -22,6 +22,7 @@ module.exports = (app) => {
       case 'pending':
       case 'error': {
         logger.debug(`STATUS:handled.state.${state}`);
+        break;
       }
       case 'failure':
       case 'success': {
@@ -34,15 +35,23 @@ module.exports = (app) => {
           // INFO(mperrotte): fetch the logs for this commit from the provider
           const log = await fetchLog(context);
 
-          // INFO(mperrotte): parce out the section of log we care about
-          const logSection = logParcer(log);
+          /**
+           * NOTE(mperrotte):
+           * If log is an empty string that means we got some values we weren't
+           * expecting from `fetchLog`. We should fail gracefully by bailing
+           */
+          if (log !== '') {
+            // INFO(mperrotte): parce out the section of log we care about
+            const logSection = logParcer(log);
 
-          // INFO(mperrotte): create a message to post as the comment on the PR
-          const message = composeMessage(commit, logSection, logUrl, commitUrl);
+            // INFO(mperrotte): create a message to post as the comment on the PR
+            const message = composeMessage(commit, logSection, logUrl, commitUrl);
 
-          // INFO(mperrotte): create or update a comment on the PR
-          upsertComment(context, message);
+            // INFO(mperrotte): create or update a comment on the PR
+            upsertComment(context, message);
+          }
         }
+        break;
       }
       default: {
         logger.debug(`STATUS:handled.state.${state}`);
