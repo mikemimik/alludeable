@@ -5,7 +5,7 @@ Github app that will comment on PR's if there are failing checks. The comment wi
 
 ## Prerequesites
 ### Continuous Integration Tool
-It is necessary to have a continuous integration tool setup for the repository that will utilise Alludeable.
+It is necessary to have a continuous integration tool setup for the repository that will utilise Alludeable. For this first go-of-it, I choose to work with Travis CI as the build CI.
 
 #### TravisCI
 - Sign into TravisCI
@@ -14,6 +14,8 @@ It is necessary to have a continuous integration tool setup for the repository t
 
 
 # Challenge Specific Info
+## Approach
+
 ## Pain Points
 - When a push happens it procs a `check_suite` webhook in the app which has the `action: "requested"`. Seems like this is to let you know that there was a check suite that is about to run. The system will then call out to whom ever is doing the check suite and eventually does get a status return (because the UI updates). This status update however doesn't proc any more webhooks.
 > Solution to this is to add the *Commit Status* permission to the Github App (this wasn't evident when I started reading about check suites/runs).
