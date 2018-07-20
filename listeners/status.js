@@ -44,6 +44,9 @@ module.exports = (app) => {
           upsertComment(context, message);
         }
       }
+      default: {
+        logger.debug(`STATUS:handled.state.${state}`);
+      }
     }
   });
 };
@@ -105,7 +108,7 @@ async function fetchLog(context) {
     const rawLog = await travisApi.getLog(jobIds.pop());
     return rawLog;
   } else {
-
+    logger.debug('error.from.getJobs');
     // INFO(mperrotte): we found 0 or > 1 jobs, bail; gracefully
     // TODO(mperrotte): handle multiple job ids
     // TODO(mperrotte): filter for failing job
