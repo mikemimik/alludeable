@@ -1,7 +1,7 @@
 'use strict';
 
 const travisApi = require('../apis/travis');
-const logParcer = require('../parcers/travis-logs');
+const logParcer = require('../parcers/travis');
 
 const EVENT_SLUG = 'status';
 const buildParser = /\d+/;
@@ -23,15 +23,20 @@ const stateHandlers = {
       // INFO(mperrotte): this commitSha is part of a PR, process it
       const logSection = await fetchLog(context);
       findOrCreateComment(context, logSection);
-      // TODO(mperrotte): parse the log file to get string for comment
-      // TODO(mperrotte): pass data along to function to post comment
     }
   },
   success: async (context) => {
-    const { payload, log: logger } = context;
-    const { target_url: targetUrl } = payload;
-    const [buildId] = targetUrl.match(buildParser);
-    logger.debug('buildId:', buildId);
+    // const { payload, log: logger } = context;
+    // const { target_url: targetUrl } = payload;
+    // const [buildId] = targetUrl.match(buildParser);
+    // logger.debug('buildId:', buildId);
+    const isInvolved = await involvement(context);
+
+    if (isInvolved) {
+      // INFO(mperrotte): this commitSha is part of a PR, process it
+      const logSection = await fetchLog(context);
+      findOrCreateComment(context, logSection);
+    }
   },
 };
 
