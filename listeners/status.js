@@ -32,13 +32,17 @@ module.exports = (app) => {
           const log = await fetchLog(context);
           const logSection = logParcer(log);
           const message = composeMessage(commit, logSection, logUrl, commitUrl);
-          findOrCreateComment(context, message);
+          upsertComment(context, message);
         }
       }
     }
   });
 };
 
+/**
+ * Fetches all open PR for the owner and repo in the context
+ * @param {Context} context The context object
+ */
 async function fetchPrs(context) {
   const { payload, github } = context;
   const {
@@ -58,6 +62,10 @@ async function fetchPrs(context) {
   return pullrequests;
 }
 
+/**
+ * Determines if the commit in the context is part of any PR's
+ * @param {Context} context The context object
+ */
 async function involvement(context) {
   const { payload } = context;
   const { sha: commitSha } = payload;
@@ -66,6 +74,10 @@ async function involvement(context) {
   return !!involvedPrs.length;
 }
 
+/**
+ * Fetches the log file for the commit from the build CI
+ * @param {Context} context The context object
+ */
 async function fetchLog(context) {
   const { payload, log: logger } = context;
   const { target_url: targetUrl } = payload;
@@ -85,17 +97,30 @@ async function fetchLog(context) {
   }
 }
 
+/**
+ * Composes the message together with a header and the
+ * Url's provided to create the message to post as a comment
+ * @param {string} commit The commit sha
+ * @param {string} message The message to compose
+ * @param {string} logUrl The url for the build logs
+ * @param {string} commitUrl The url for the commit
+ */
 function composeMessage(commit, message, logUrl, commitUrl) {
   const header = `### The [CI build](${logUrl}) for commit: <code>[${commit.slice(0, 6)}](${commitUrl})</code>`;
 
   return `${header}\n${message}`;
 }
 
-async function findOrCreateComment(context, message) {
+/**
+ * Creates or updates a comment on the PR for this context
+ * @param {Context} context The context object
+ * @param {string} message The message to post as the comment on the PR
+ */
+async function upsertComment(context, message) {
   const { payload, github } = context;
+  // INFO(mperrotte): fetch the Pr's
   const pullrequests = await fetchPrs(context);
   const pullrequest = pullrequests.pop();
-  console.log(pullrequest);
   const {
     repository: {
       name: repoName,
