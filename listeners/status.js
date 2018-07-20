@@ -4,52 +4,37 @@ const travisApi = require('../apis/travis');
 const logParcer = require('../parcers/travis');
 
 const EVENT_SLUG = 'status';
-const buildParser = /\d+/;
-
-const stateHandlers = {
-  error: async (context) => {
-    const { log: logger } = context;
-    logger.debug('STATUS:handled.state.error');
-  },
-  pending: async (context) => {
-    const { log: logger } = context;
-    logger.debug('STATUS:handled.state.pending');
-  },
-  failure: async (context) => {
-    const { payload, log: logger, github } = context;
-    const isInvolved = await involvement(context);
-
-    if (isInvolved) {
-      // INFO(mperrotte): this commitSha is part of a PR, process it
-      const logSection = await fetchLog(context);
-      findOrCreateComment(context, logSection);
-    }
-  },
-  success: async (context) => {
-    // const { payload, log: logger } = context;
-    // const { target_url: targetUrl } = payload;
-    // const [buildId] = targetUrl.match(buildParser);
-    // logger.debug('buildId:', buildId);
-    const isInvolved = await involvement(context);
-
-    if (isInvolved) {
-      // INFO(mperrotte): this commitSha is part of a PR, process it
-      const logSection = await fetchLog(context);
-      findOrCreateComment(context, logSection);
-    }
-  },
-};
 
 module.exports = (app) => {
   app.on(EVENT_SLUG, async (context) => {
-    // NOTE(mperrotte): execute state handler for this status event
+    // NOTE(mperrotte): execute the state flow for this status event
     const { payload, log: logger } = context;
-    const { state } = payload;
+    const {
+      state,
+      sha: commit,
+      target_url: logUrl,
+      commit: {
+        html_url: commitUrl,
+      },
+    } = payload;
 
-    const handler = stateHandlers[state];
-    if (handler) {
-      logger.debug(`execute.handler.${state}`);
-      handler(context);
+    switch (state) {
+      case 'pending':
+      case 'error': {
+        logger.debug(`STATUS:handled.state.${state}`);
+      }
+      case 'failure':
+      case 'success': {
+        const isInvolved = await involvement(context);
+
+        if (isInvolved) {
+          // INFO(mperrotte): this commitSha is part of a PR, process it
+          const log = await fetchLog(context);
+          const logSection = logParcer(log);
+          const message = composeMessage(commit, logSection, logUrl, commitUrl);
+          findOrCreateComment(context, message);
+        }
+      }
     }
   });
 };
@@ -84,6 +69,7 @@ async function involvement(context) {
 async function fetchLog(context) {
   const { payload, log: logger } = context;
   const { target_url: targetUrl } = payload;
+  const buildParser = /\d+/;
 
   const [buildId] = targetUrl.match(buildParser);
   logger.debug('buildId:', buildId);
@@ -91,14 +77,18 @@ async function fetchLog(context) {
   const jobIds = await travisApi.getJobs(buildId);
   if (jobIds.length === 1) {
     const rawLog = await travisApi.getLog(jobIds.pop());
-    const logSection = logParcer(rawLog);
-    logger.debug(logSection); // TESTING
-    return logSection;
+    return rawLog;
   } else {
     // TODO(mperrotte): handle multiple job ids
     // TODO(mperrotte): filter for failing job
     return '';
   }
+}
+
+function composeMessage(commit, message, logUrl, commitUrl) {
+  const header = `### The [CI build](${logUrl}) for commit: <code>[${commit.slice(0, 6)}](${commitUrl})</code>`;
+
+  return `${header}\n${message}`;
 }
 
 async function findOrCreateComment(context, message) {
@@ -120,7 +110,6 @@ async function findOrCreateComment(context, message) {
     number: pullrequest.number,
   };
   const { data: comments } = await github.issues.getComments(commentFetchParams);
-  console.log(comments); // TESTING
   const appComments = comments.filter((comment) => {
     const {
       user: {
@@ -143,7 +132,6 @@ async function findOrCreateComment(context, message) {
       body: message,
     };
     const updateComment = await github.issues.editComment(updateCommentParams);
-    console.log(updateComment); // TESTING
   } else if (appComments.legnth > 1) {
     // NOTE(mperrotte): somehow the bot commented twice on this PR (error)
     // TODO(mperrotte): make this edge case impossible
