@@ -1,7 +1,6 @@
 'use strict';
 
-// const request = require('request-promise');
-const TravisApi = require('../apis/travis');
+const TravisApi = require('../../apis/travis');
 
 jest.mock('request-promise', () => {
   const getJobsfixture = {
