@@ -188,8 +188,7 @@ async function upsertComment(context, message) {
       comment_id: comment.id,
       body: message,
     };
-    const { data: updateComment } = await github.issues.editComment(updateCommentParams);
-    logger.debug('updated.comment:', updateComment);
+    await github.issues.editComment(updateCommentParams);
   } else if (appComments.legnth > 1) {
 
     // INFO(mperrotte): found more than one comment from the bot? uh oh, we should bail
@@ -204,7 +203,6 @@ async function upsertComment(context, message) {
       number: pullrequest.number,
       body: message,
     };
-    const { data: createComment } = await github.issues.createComment(createCommentParams);
-    logger.debug('created.comment:', createComment);
+    await github.issues.createComment(createCommentParams);
   }
 }
